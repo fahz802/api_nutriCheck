@@ -36,5 +36,6 @@ app.post('/api/send-otp', authRoutes.sendOtp);
 app.post('/api/change-password', authRoutes.changePassword);
 
 app.listen(PORT, () => {
-  console.log('Server running at http://localhost:${PORT}');
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+
 });
