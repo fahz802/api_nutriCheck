@@ -16,7 +16,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
   const imagePath = path.join(__dirname, '..', req.file.path);
   console.log('[DEBUG] Image path:', imagePath);
 
-  const python = spawn('python3', ['deeplearning/main.py', imagePath]);
+  const python = spawn('python', ['deeplearning/main.py', imagePath]);
 
   let result = '';
   let errorOutput = '';
