@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 const verifyToken = require('../middlewares/verifyToken');
 const csv = require('csv-parser');
 const stringSimilarity = require('string-similarity');
+const riwayatNutrisi = require('../models/Nutrition');
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -14,10 +15,18 @@ const upload = multer({ dest: 'uploads/' });
 router.post('/manual', verifyToken, async (req, res) => {
   try {
     const { food_name, nutrition } = req.body;
-
     if (!food_name || !nutrition) {
       return res.status(400).json({ message: 'Nama makanan dan informasi gizi harus diisi' });
     }
+
+    // Simpan ke MongoDB
+    await RiwayatNutrisi.create({
+      user_id: req.user.id,
+      source: 'manual',
+      food_name,
+      nutrition,
+      date: new Date().toISOString().split('T')[0] // format YYYY-MM-DD
+    });
 
     return res.status(200).json({
       class: food_name,
