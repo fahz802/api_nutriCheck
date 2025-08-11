@@ -48,54 +48,75 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Nama makanan harus diisi' });
     }
 
+    const normalizeName = (name) => {
+      if (!name || typeof name !== 'string') return '';
+      return name.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+
+    const targetName = normalizeName(food_name);
     const dataRows = [];
+
     fs.createReadStream(path.join(__dirname, '../deeplearning/nutrition.csv'))
       .pipe(csv())
       .on('data', (row) => {
         dataRows.push({
           name: row.name,
+          name_cleaned: normalizeName(row.name),
           calories: parseFloat(row.calories),
           proteins: parseFloat(row.proteins),
           fat: parseFloat(row.fat),
           carbohydrate: parseFloat(row.carbohydrate)
         });
       })
-     .on('end', () => {
-  if (dataRows.length === 0) {
-    return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
-  }
+      .on('end', async () => {
+        if (dataRows.length === 0) {
+          return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
+        }
 
-  // Filter hanya yang punya name
-  const names = dataRows
-    .filter(item => item.name && typeof item.name === 'string')
-    .map(item => item.name.toLowerCase());
+        const candidates = dataRows.map(item => item.name_cleaned);
+        const bestMatch = stringSimilarity.findBestMatch(targetName, candidates);
 
-  if (names.length === 0) {
-    return res.status(404).json({ message: 'Tidak ada data name yang valid di dataset' });
-  }
+        const cutoff = 0.5; // sama seperti main.py
+        if (bestMatch.bestMatch.rating >= cutoff) {
+          const matchedName = candidates[bestMatch.bestMatchIndex];
+          const matchData = dataRows.find(item => item.name_cleaned === matchedName);
 
-  const bestMatch = stringSimilarity.findBestMatch(food_name.toLowerCase(), names);
-  const bestName = names[bestMatch.bestMatchIndex];
-  const matchData = dataRows.find(item => 
-    item.name && item.name.toLowerCase() === bestName
-  );
+          // Simpan ke MongoDB
+          await RiwayatNutrisi.create({
+            user_id: req.user.id_users, // sesuai JWT
+            source: 'name_search',
+            food_name: matchData.name,
+            nutrition: {
+              calories: matchData.calories,
+              proteins: matchData.proteins,
+              fat: matchData.fat,
+              carbohydrate: matchData.carbohydrate
+            },
+            date: new Date().toISOString().split('T')[0]
+          });
 
-  if (matchData && bestMatch.bestMatch.rating >= 0.5) {
-    return res.status(200).json({
-      class: matchData.name,
-      confidence: `${(bestMatch.bestMatch.rating * 100).toFixed(2)}%`,
-      nutrition: matchData,
-      message: 'Data gizi ditemukan dengan fuzzy match'
-    });
-  } else {
-    return res.status(404).json({ message: 'Data gizi tidak ditemukan (kemiripan rendah)' });
-  }
-});
+          return res.status(200).json({
+            class: matchData.name,
+            confidence: `${(bestMatch.bestMatch.rating * 100).toFixed(2)}%`,
+            nutrition: {
+              name: matchData.name,
+              calories: matchData.calories,
+              proteins: matchData.proteins,
+              fat: matchData.fat,
+              carbohydrate: matchData.carbohydrate
+            },
+            message: 'Data gizi ditemukan dengan fuzzy match'
+          });
+        } else {
+          return res.status(404).json({ message: 'Data gizi tidak ditemukan (kemiripan rendah)' });
+        }
+      });
 
   } catch (err) {
     return res.status(500).json({ message: 'Error pencarian gizi', detail: err.message });
   }
 });
+
 
 // ========== Endpoint deteksi gambar (lama) ==========
 router.post('/', verifyToken, upload.single('image'), async (req, res) => {
