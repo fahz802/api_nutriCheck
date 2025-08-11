@@ -48,6 +48,7 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Nama makanan harus diisi' });
     }
 
+    // Fungsi normalisasi mirip main.py
     const normalizeName = (name) => {
       if (!name || typeof name !== 'string') return '';
       return name.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
@@ -68,7 +69,7 @@ router.get('/search', verifyToken, async (req, res) => {
           carbohydrate: parseFloat(row.carbohydrate)
         });
       })
-      .on('end', async () => {
+      .on('end', () => {
         if (dataRows.length === 0) {
           return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
         }
@@ -80,20 +81,6 @@ router.get('/search', verifyToken, async (req, res) => {
         if (bestMatch.bestMatch.rating >= cutoff) {
           const matchedName = candidates[bestMatch.bestMatchIndex];
           const matchData = dataRows.find(item => item.name_cleaned === matchedName);
-
-          // Simpan ke MongoDB
-          await RiwayatNutrisi.create({
-            user_id: req.user.id_users, // sesuai JWT
-            source: 'name_search',
-            food_name: matchData.name,
-            nutrition: {
-              calories: matchData.calories,
-              proteins: matchData.proteins,
-              fat: matchData.fat,
-              carbohydrate: matchData.carbohydrate
-            },
-            date: new Date().toISOString().split('T')[0]
-          });
 
           return res.status(200).json({
             class: matchData.name,
@@ -116,7 +103,6 @@ router.get('/search', verifyToken, async (req, res) => {
     return res.status(500).json({ message: 'Error pencarian gizi', detail: err.message });
   }
 });
-
 
 // ========== Endpoint deteksi gambar (lama) ==========
 router.post('/', verifyToken, upload.single('image'), async (req, res) => {
