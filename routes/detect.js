@@ -21,7 +21,7 @@ router.post('/manual', verifyToken, async (req, res) => {
 
     // Simpan ke MongoDB
     await RiwayatNutrisi.create({
-      user_id: req.user.id,
+      user_id: req.user.id_users,
       source: 'manual',
       food_name,
       nutrition,
