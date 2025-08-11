@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const verifyToken = require('../middlewares/verifyToken');
 const csv = require('csv-parser');
 const stringSimilarity = require('string-similarity');
-const riwayatNutrisi = require('../models/Nutrition');
+const RiwayatNutrisi = require('../models/Nutrition');
 
 const upload = multer({ dest: 'uploads/' });
 
