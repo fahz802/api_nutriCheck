@@ -77,7 +77,7 @@ router.get('/search', verifyToken, async (req, res) => {
         const candidates = dataRows.map(item => item.name_cleaned);
         const bestMatch = stringSimilarity.findBestMatch(targetName, candidates);
 
-        const cutoff = 0.8; // sama seperti main.py
+        const cutoff = 0.5; // sama seperti main.py
         if (bestMatch.bestMatch.rating >= cutoff) {
           const matchedName = candidates[bestMatch.bestMatchIndex];
           const matchData = dataRows.find(item => item.name_cleaned === matchedName);
