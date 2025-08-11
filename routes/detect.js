@@ -60,28 +60,37 @@ router.get('/search', verifyToken, async (req, res) => {
           carbohydrate: parseFloat(row.carbohydrate)
         });
       })
-      .on('end', () => {
-        if (dataRows.length === 0) {
-          return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
-        }
+     .on('end', () => {
+  if (dataRows.length === 0) {
+    return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
+  }
 
-        // Fuzzy match
-        const names = dataRows.map(item => item.name.toLowerCase());
-        const bestMatch = stringSimilarity.findBestMatch(food_name.toLowerCase(), names);
-        const bestName = names[bestMatch.bestMatchIndex];
-        const matchData = dataRows.find(item => item.name.toLowerCase() === bestName);
+  // Filter hanya yang punya name
+  const names = dataRows
+    .filter(item => item.name && typeof item.name === 'string')
+    .map(item => item.name.toLowerCase());
 
-        if (bestMatch.bestMatch.rating >= 0.5) {
-          return res.status(200).json({
-            class: matchData.name,
-            confidence: `${(bestMatch.bestMatch.rating * 100).toFixed(2)}%`,
-            nutrition: matchData,
-            message: 'Data gizi ditemukan dengan fuzzy match'
-          });
-        } else {
-          return res.status(404).json({ message: 'Data gizi tidak ditemukan (kemiripan rendah)' });
-        }
-      });
+  if (names.length === 0) {
+    return res.status(404).json({ message: 'Tidak ada data name yang valid di dataset' });
+  }
+
+  const bestMatch = stringSimilarity.findBestMatch(food_name.toLowerCase(), names);
+  const bestName = names[bestMatch.bestMatchIndex];
+  const matchData = dataRows.find(item => 
+    item.name && item.name.toLowerCase() === bestName
+  );
+
+  if (matchData && bestMatch.bestMatch.rating >= 0.5) {
+    return res.status(200).json({
+      class: matchData.name,
+      confidence: `${(bestMatch.bestMatch.rating * 100).toFixed(2)}%`,
+      nutrition: matchData,
+      message: 'Data gizi ditemukan dengan fuzzy match'
+    });
+  } else {
+    return res.status(404).json({ message: 'Data gizi tidak ditemukan (kemiripan rendah)' });
+  }
+});
 
   } catch (err) {
     return res.status(500).json({ message: 'Error pencarian gizi', detail: err.message });
