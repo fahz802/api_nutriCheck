@@ -20,6 +20,8 @@
     "mongoose": "^8.15.1",
     "multer": "^2.0.1",
     "mysql2": "^3.14.1",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "csv-parser": "^3.0.0",
+    "string-similarity": "^4.0.4"
   }
 }

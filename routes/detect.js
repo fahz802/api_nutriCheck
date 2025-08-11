@@ -6,6 +6,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const verifyToken = require('../middlewares/verifyToken');
 const csv = require('csv-parser');
+const stringSimilarity = require('string-similarity');
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -38,30 +39,38 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Nama makanan harus diisi' });
     }
 
-    const results = [];
+    const dataRows = [];
     fs.createReadStream(path.join(__dirname, '../deeplearning/nutrition.csv'))
       .pipe(csv())
       .on('data', (row) => {
-        if (row.name && row.name.toLowerCase().includes(food_name.toLowerCase())) {
-          results.push({
-            name: row.name,
-            calories: parseFloat(row.calories),
-            proteins: parseFloat(row.proteins),
-            fat: parseFloat(row.fat),
-            carbohydrate: parseFloat(row.carbohydrate)
-          });
-        }
+        dataRows.push({
+          name: row.name,
+          calories: parseFloat(row.calories),
+          proteins: parseFloat(row.proteins),
+          fat: parseFloat(row.fat),
+          carbohydrate: parseFloat(row.carbohydrate)
+        });
       })
       .on('end', () => {
-        if (results.length > 0) {
+        if (dataRows.length === 0) {
+          return res.status(404).json({ message: 'Dataset kosong atau tidak terbaca' });
+        }
+
+        // Fuzzy match
+        const names = dataRows.map(item => item.name.toLowerCase());
+        const bestMatch = stringSimilarity.findBestMatch(food_name.toLowerCase(), names);
+        const bestName = names[bestMatch.bestMatchIndex];
+        const matchData = dataRows.find(item => item.name.toLowerCase() === bestName);
+
+        if (bestMatch.bestMatch.rating >= 0.5) {
           return res.status(200).json({
-            class: food_name,
-            confidence: null,
-            nutrition: results[0], // ambil yang pertama
-            message: 'Data gizi ditemukan'
+            class: matchData.name,
+            confidence: `${(bestMatch.bestMatch.rating * 100).toFixed(2)}%`,
+            nutrition: matchData,
+            message: 'Data gizi ditemukan dengan fuzzy match'
           });
         } else {
-          return res.status(404).json({ message: 'Data gizi tidak ditemukan di dataset' });
+          return res.status(404).json({ message: 'Data gizi tidak ditemukan (kemiripan rendah)' });
         }
       });
 
